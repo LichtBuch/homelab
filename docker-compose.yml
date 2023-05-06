@@ -1,0 +1,192 @@
+version: "2.1"
+services:
+  transmission:
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ${TORRENTS}:/data
+      - ${OVPN}:/etc/openvpn/custom/default.ovpn
+    image: haugene/transmission-openvpn:latest
+    restart: unless-stopped
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    environment:
+      OPENVPN_PROVIDER: ${OPENVPN_PROVIDER:-custom}
+      OPENVPN_USERNAME: ${OPENVPN_USERNAME:-dummy}
+      OPENVPN_PASSWORD: ${OPENVPN_PASSWORD:-dummy}
+      LOCAL_NETWORK: ${LOCAL_NETWORK:-192.168.0.0/16}
+      TRANSMISSION_WEB_UI: ${TRANSMISSION_WEB_UI:-combustion}
+    networks:
+      - sonarrTorrent
+      - radarrTorrent
+    blkio_config:
+      weight: 100
+    ports:
+      - 9091:9091
+      - 51413:51413
+      - 51413:51413/udp
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    volumes:
+      - sonarrConfig:/config
+      - ${JELLYFIN_ROOT}:/tv
+      - ${TORRENTS}:/downloads
+    restart: unless-stopped
+    depends_on:
+      - prowlarr
+    networks:
+      - sonarrTorrent
+      - sonarrUsenet
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Europe/London}
+    blkio_config:
+      weight: 100
+    ports:
+      - 8989:8989
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:latest
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Europe/London}
+    volumes:
+      - prowlarrConfig:/config
+    restart: unless-stopped
+    depends_on:
+      - transmission
+      - nzbget
+    networks:
+      - sonarrTorrent
+      - radarrTorrent
+      - sonarrUsenet
+      - radarrUsenet
+      - flaresolverr
+    ports:
+      - 9696:9696
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Europe/London}
+    volumes:
+      - radarrConfig:/config
+      - ${JELLYFIN_ROOT}${JELLYFIN_MOVIES}:/movies
+      - ${TORRENTS}:/downloads
+    restart: unless-stopped
+    depends_on:
+      - prowlarr
+      - transmission
+    networks:
+      - radarrTorrent
+      - radarrUsenet
+    blkio_config:
+      weight: 100
+    ports:
+      - 7878:7878
+  jellyfin:
+    image: lscr.io/linuxserver/jellyfin:latest
+    environment:
+      - JELLYFIN_PublishedServerUrl=${JELLYFIN_PUBLISHED_SERVER_URL}
+    volumes:
+      - ${JELLYFIN_ROOT}${JELLYFIN_CONFIG}:/config
+      - ${JELLYFIN_ROOT}${JELLYFIN_TV_SHOWS}:/data/tvshows:ro
+      - ${JELLYFIN_ROOT}${JELLYFIN_MOVIES}:/data/movies:ro
+      - ${JELLYFIN_WEB_INTERFACE}:/usr/share/jellyfin/web:ro
+    restart: unless-stopped
+    devices:
+      - /dev/dri:/dev/dri
+    networks:
+      - jellyfin
+    blkio_config:
+      weight: 900
+    ports:
+      - 8096:8096
+  watchtower:
+    image: containrrr/watchtower:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - watchtower
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_HTML=${LOG_HTML:-false}
+      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
+      - TZ=${TZ:-Europe/London}
+    restart: unless-stopped
+    networks:
+      - flaresolverr
+  nzbget:
+    image: lscr.io/linuxserver/nzbget:latest
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Europe/London}
+      - NZBGET_USER=${NZBGET_USER}
+      - NZBGET_PASS=${NZBGET_PASS}
+    volumes:
+      - ${TORRENTS}:/config
+    restart: unless-stopped
+    blkio_config:
+      weight: 100
+    networks:
+      - sonarrUsenet
+    ports:
+      - 6789:6789
+  adguard:
+    image: adguard/adguardhome
+    restart: unless-stopped
+    networks:
+      - adguard
+    volumes:
+      - adguardWork:/opt/adguardhome/work
+      - adguardConf:/opt/adguardhome/conf
+    ports:
+      - 53:53/udp
+      - 53:53/tcp
+      - 80:80/tcp
+
+volumes:
+  sonarrConfig:
+  prowlarrConfig:
+  radarrConfig:
+  adguardWork:
+  adguardConf:
+  syncthingConfig:
+
+networks:
+  watchtower:
+    driver: bridge
+    enable_ipv6: false
+  jellyfin:
+    driver: bridge
+    enable_ipv6: false
+  sonarrTorrent:
+    driver: bridge
+    enable_ipv6: false
+  radarrTorrent:
+    driver: bridge
+    enable_ipv6: false
+  flaresolverr:
+    driver: bridge
+    enable_ipv6: false
+  sonarrUsenet:
+    driver: bridge
+    enable_ipv6: false
+  radarrUsenet:
+    driver: bridge
+    enable_ipv6: false
+  adguard:
+    driver: bridge
+    enable_ipv6: false
+  docker_portainer:
+    external: true
+  syncthing:
+    driver: bridge
+    enable_ipv6: false

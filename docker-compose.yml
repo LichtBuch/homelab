@@ -168,6 +168,15 @@ services:
     restart: unless-stopped
     networks:
       - syncthing
+  vaultwarden:
+    image: vaultwarden/server
+    volumes:
+      - vaultwardenData:/data
+    ports:
+      - "82:80"
+    restart: unless-stopped
+    networks:
+      - vaultwarden
 
 volumes:
   sonarrConfig:
@@ -177,6 +186,7 @@ volumes:
   adguardConf:
   syncthingConfig:
   syncthingData:
+  vaultwardenData:
 
 networks:
   watchtower:
@@ -206,5 +216,8 @@ networks:
   docker_portainer:
     external: true
   syncthing:
+    driver: bridge
+    enable_ipv6: false
+  vaultwarden:
     driver: bridge
     enable_ipv6: false

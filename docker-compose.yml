@@ -22,9 +22,9 @@ services:
     blkio_config:
       weight: 100
     ports:
-      - 9091:9091
-      - 51413:51413
-      - 51413:51413/udp
+      - "9091:9091"
+      - "51413:51413"
+      - "51413:51413/udp"
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
     volumes:
@@ -44,7 +44,7 @@ services:
     blkio_config:
       weight: 100
     ports:
-      - 8989:8989
+      - "8989:8989"
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
     environment:
@@ -64,7 +64,7 @@ services:
       - radarrUsenet
       - flaresolverr
     ports:
-      - 9696:9696
+      - "9696:9696"
   radarr:
     image: lscr.io/linuxserver/radarr:latest
     environment:
@@ -85,7 +85,7 @@ services:
     blkio_config:
       weight: 100
     ports:
-      - 7878:7878
+      - "7878:7878"
   jellyfin:
     image: lscr.io/linuxserver/jellyfin:latest
     environment:
@@ -103,7 +103,7 @@ services:
     blkio_config:
       weight: 900
     ports:
-      - 8096:8096
+      - "8096:8096"
   watchtower:
     image: containrrr/watchtower:latest
     volumes:
@@ -138,7 +138,7 @@ services:
     networks:
       - sonarrUsenet
     ports:
-      - 6789:6789
+      - "6789:6789"
   adguard:
     image: adguard/adguardhome
     restart: unless-stopped
@@ -148,9 +148,26 @@ services:
       - adguardWork:/opt/adguardhome/work
       - adguardConf:/opt/adguardhome/conf
     ports:
-      - 53:53/udp
-      - 53:53/tcp
-      - 80:80/tcp
+      - "53:53/udp"
+      - "53:53/tcp"
+      - "80:80/tcp"
+  syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - syncthingConfig:/config
+      - syncthingData:/data1
+    ports:
+      - "8384:8384"
+      - "22000:22000/tcp"
+      - "22000:22000/udp"
+      - "21027:21027/udp"
+    restart: unless-stopped
+    networks:
+      - syncthing
 
 volumes:
   sonarrConfig:
@@ -159,6 +176,7 @@ volumes:
   adguardWork:
   adguardConf:
   syncthingConfig:
+  syncthingData:
 
 networks:
   watchtower:
